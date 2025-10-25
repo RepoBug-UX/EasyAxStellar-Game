@@ -9,7 +9,6 @@ use error::Error;
 #[contract]
 pub struct Spellbound;
 
-const THE_NUMBER: &Symbol = &symbol_short!("n");
 pub const ADMIN_KEY: &Symbol = &symbol_short!("ADMIN");
 
 #[contractimpl]
@@ -28,21 +27,6 @@ impl Spellbound {
         );
         // Set the admin in storage
         Self::set_admin(env, admin);
-        // Set a random number between 1 and 10
-        Self::reset_number(env);
-    }
-
-    /// Update the number. Only callable by admin.
-    pub fn reset(env: &Env) {
-        Self::require_admin(env);
-        Self::reset_number(env);
-    }
-
-    // Private function to reset the number to a new random value
-    // which doesn't require auth from the admin
-    fn reset_number(env: &Env) {
-        let new_number: u64 = env.prng().gen_range(1..=10);
-        env.storage().instance().set(THE_NUMBER, &new_number);
     }
 
     /// Guess a number between 1 and 10
