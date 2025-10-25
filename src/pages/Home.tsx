@@ -6,12 +6,11 @@ const Home: React.FC = () => (
   <Layout.Content>
     <Layout.Inset>
       <Text as="h1" size="xl">
-        Welcome to your app!
+        Welcome to Spellbound!
       </Text>
       <Text as="p" size="md">
-        This is a basic template to get your dapp started with the Stellar
-        Design System and Stellar contracts. You can customize it further by
-        adding your own contracts, components, and styles.
+        A blockchain-based game built on Stellar Soroban smart contracts.
+        Experience the magic of decentralized gaming with real rewards!
       </Text>
 
       <Text as="h2" size="lg">

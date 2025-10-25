@@ -8,8 +8,8 @@ import Debugger from "./pages/Debugger.tsx";
 const AppLayout: React.FC = () => (
   <main>
     <Layout.Header
-      projectId="My App"
-      projectTitle="My App"
+      projectId="Spellbound"
+      projectTitle="Spellbound Game"
       contentRight={
         <>
           <nav>
@@ -39,7 +39,7 @@ const AppLayout: React.FC = () => (
     <Outlet />
     <Layout.Footer>
       <span>
-        © {new Date().getFullYear()} My App. Licensed under the{" "}
+        © {new Date().getFullYear()} Spellbound Game. Licensed under the{" "}
         <a
           href="http://www.apache.org/licenses/LICENSE-2.0"
           target="_blank"

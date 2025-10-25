@@ -1,6 +1,6 @@
 [package]
-name = "guess-the-number"
-description = "Admin sets up the pot, anyone can guess to win it"
+name = "spellbound"
+description = "Spellbound game contract for hackathon"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

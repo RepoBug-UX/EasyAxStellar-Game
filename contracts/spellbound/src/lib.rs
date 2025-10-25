@@ -7,13 +7,13 @@ mod xlm;
 use error::Error;
 
 #[contract]
-pub struct GuessTheNumber;
+pub struct Spellbound;
 
 const THE_NUMBER: &Symbol = &symbol_short!("n");
 pub const ADMIN_KEY: &Symbol = &symbol_short!("ADMIN");
 
 #[contractimpl]
-impl GuessTheNumber {
+impl Spellbound {
     /// Constructor to initialize the contract with an admin and a random number
     pub fn __constructor(env: &Env, admin: Address) {
         // Require auth from the admin to make the transfer

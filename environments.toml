@@ -13,7 +13,7 @@ fungible_token_interface_example = { client = true, constructor_args = "--owner 
 nft_enumerable_example = { client = true, constructor_args = "--owner me" }
 
 # Rather than in one list, TOML allows specifying contracts in their own "sections"
-[development.contracts.guess_the_number]
+[development.contracts.spellbound]
 # Generate a contract client (NPM package) for this contract. This means:
 #   - compile (build) the contract source to Wasm
 #   - deploy the contract to the `network` specified above
