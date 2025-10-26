@@ -6,7 +6,7 @@ A decentralized card battle game built on Stellar blockchain where players stake
 
 ## 📺 Demo Video
 
-> **[Add your demo video link here]**
+> **https://drive.google.com/file/d/1EGClba3pC38KGxgeHjd9AHrXnrLWtIwv/view?usp=sharing**
 
 ---
 
