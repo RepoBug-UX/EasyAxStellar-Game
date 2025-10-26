@@ -1,12 +1,24 @@
 # 🎮 Spellbound - Stellar Blockchain Card Game
 
 **Live Demo**: https://repobug-ux.github.io/EasyAxStellar-Spellbound/  
+**Netlify Demo**: https://dainty-trifle-d06dfe.netlify.app (Password: `My-Drop-Site`)  
 **Smart Contract**: `CCSMSRFPJHXGDFYMPVJVNW2RD6B6WQ5ECTP7VD37WMDUEMWJ4ZALIVC5`  
 **Registry Link**: https://registry.stellar.org/contract/CCSMSRFPJHXGDFYMPVJVNW2RD6B6WQ5ECTP7VD37WMDUEMWJ4ZALIVC5
 
 ## 🌟 Overview
 
 Spellbound is a retro-styled card battle game built on the Stellar blockchain using Soroban smart contracts. Players battle with magical cards, use NFT powerups, and earn real XLM rewards. The game features a pixel-perfect UI inspired by classic arcade games with modern blockchain integration.
+
+### 🎬 Project Demo Videos
+
+- **[Project Breakdown Video 1](./media/IMG_8959.MOV)** - Complete project overview and technical walkthrough
+- **[Project Breakdown Video 2](./media/IMG_8960.MOV)** - Gameplay demonstration and UI showcase
+
+### 📸 UI Screenshots
+
+- **[Home Page](./media/Screenshot%202025-10-26%20at%2012.01.21%20PM.png)** - Landing page with game rules and wallet connection
+- **[Lobby Interface](./media/Screenshot%202025-10-26%20at%2012.01.33%20PM.png)** - Matchmaking lobby with player stats and funding
+- **[Game in Progress](./media/Screenshot%202025-10-26%20at%2012.01.41%20PM.png)** - Active card battle with opponent and player hands
 
 ## 🎯 Key Features
 
@@ -137,6 +149,35 @@ npm run preview
 - **Emote System**: Player communication during battles
 - **Progress Indicators**: Real-time matchmaking status
 
+### Visual Showcase
+
+The game features a complete retro gaming experience with:
+
+![Home Page](./media/Screenshot%202025-10-26%20at%2012.01.21%20PM.png)
+_Landing page with comprehensive game rules and wallet connection_
+
+![Lobby Interface](./media/Screenshot%202025-10-26%20at%2012.01.33%20PM.png)
+_Matchmaking lobby showing player stats, balance, and matchmaking status_
+
+![Game in Progress](./media/Screenshot%202025-10-26%20at%2012.01.41%20PM.png)
+_Active card battle with opponent hand, player hand, and NFT powerups_
+
+## 🚀 Try It Now!
+
+**Quick Access**:
+
+- **Primary Demo**: https://repobug-ux.github.io/EasyAxStellar-Spellbound/
+- **Backup Demo**: https://dainty-trifle-d06dfe.netlify.app (Password: `My-Drop-Site`)
+
+**Steps to Play**:
+
+1. Visit either demo URL above
+2. Connect your Stellar wallet (Freighter recommended)
+3. Fund your account with testnet XLM
+4. Click "FIND MATCH" to start a game
+5. Select cards strategically and battle!
+6. Win XLM rewards for victories
+
 ## 🔧 Development
 
 ### Project Structure
@@ -206,7 +247,7 @@ The project is automatically deployed to GitHub Pages:
 
 ### Demo Instructions
 
-1. **Visit**: https://repobug-ux.github.io/EasyAxStellar-Spellbound/
+1. **Visit**: Either demo URL above
 2. **Connect Wallet**: Use any Stellar wallet (Freighter recommended)
 3. **Fund Account**: Claim testnet XLM from friendbot
 4. **Enter Lobby**: Click "FIND MATCH" to start a game
