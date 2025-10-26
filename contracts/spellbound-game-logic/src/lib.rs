@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, symbol_short, Address, Env, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, symbol_short, Address, Env, Symbol, Vec, IntoVal};
 
 mod error;
 use error::Error;
@@ -19,6 +19,8 @@ const PLAYER1_HAND: &Symbol = &symbol_short!("hand1");
 const PLAYER2_HAND: &Symbol = &symbol_short!("hand2");
 const PLAYER1_CARD: &Symbol = &symbol_short!("card1");
 const PLAYER2_CARD: &Symbol = &symbol_short!("card2");
+const PLATFORM_CONTRACT: &Symbol = &symbol_short!("platform");
+const MATCH_ID: &Symbol = &symbol_short!("match_id");
 
 #[contract]
 pub struct SpellboundGameLogic;
@@ -33,16 +35,18 @@ impl SpellboundGameLogic {
 
     /// Start a new game with two players
     /// Called by the platform contract
-    pub fn start_game(env: &Env, game_id: i32, player1: Address, player2: Address) -> Result<(), Error> {
+    pub fn strt_game(env: &Env, game_id: i32, player1: Address, player2: Address, platform_contract: Address) -> Result<(), Error> {
         // Check if game is already in progress
         let current_state: i32 = env.storage().instance().get(GAME_STATE).unwrap_or(PRE_GAME);
         if current_state != PRE_GAME {
             return Err(Error::GameNotAvailable);
         }
 
-        // Store players
+        // Store players and platform info
         env.storage().instance().set(PLAYER1, &player1);
         env.storage().instance().set(PLAYER2, &player2);
+        env.storage().instance().set(PLATFORM_CONTRACT, &platform_contract);
+        env.storage().instance().set(MATCH_ID, &game_id);
 
         // Initialize decks (cards 1-4, 3 types each = 12 total cards per player)
         let mut deck1: Vec<i32> = Vec::new(&env);
@@ -263,6 +267,24 @@ impl SpellboundGameLogic {
         
         if player1_out || player2_out {
             env.storage().instance().set(GAME_STATE, &POST_GAME);
+            
+            // Call platform contract to end match and handle payouts
+            let platform_contract: Address = env.storage().instance().get(PLATFORM_CONTRACT).unwrap();
+            let match_id: i32 = env.storage().instance().get(MATCH_ID).unwrap();
+            
+            // Determine winner
+            let winner: Option<Address> = if player1_out {
+                env.storage().instance().get(PLAYER2) // Player 2 wins
+            } else {
+                env.storage().instance().get(PLAYER1) // Player 1 wins
+            };
+            
+            // Call platform contract's end_match function
+            env.invoke_contract::<()>(
+                &platform_contract,
+                &symbol_short!("end_match"),
+                (match_id, winner).into_val(env),
+            );
         }
     }
 
@@ -270,7 +292,7 @@ impl SpellboundGameLogic {
     fn shuffle_deck(env: &Env, deck: &mut Vec<i32>) {
         let len = deck.len() as u64;
         for i in 0..len {
-            let j = env.prng().gen_range(0..len);
+            let j: u64 = env.prng().gen_range(0..len);
             if i != j {
                 let temp = deck.get(i as u32).unwrap();
                 let swap = deck.get(j as u32).unwrap();
@@ -280,59 +302,9 @@ impl SpellboundGameLogic {
         }
     }
 
-    /// Get player's hand
-    pub fn get_hand(env: &Env, player: Address) -> Result<Vec<i32>, Error> {
-        let player1: Address = env.storage().instance().get(PLAYER1).unwrap();
-        let player2: Address = env.storage().instance().get(PLAYER2).unwrap();
-        
-        if player == player1 {
-            Ok(env.storage().instance().get(PLAYER1_HAND).unwrap())
-        } else if player == player2 {
-            Ok(env.storage().instance().get(PLAYER2_HAND).unwrap())
-        } else {
-            Err(Error::NotInGame)
-        }
-    }
 
-    /// Get game state
-    pub fn get_game_state(env: &Env) -> i32 {
-        env.storage().instance().get(GAME_STATE).unwrap_or(PRE_GAME)
-    }
 
-    /// Check if both players have played this turn
-    pub fn both_players_played(env: &Env) -> bool {
-        let p1_card: Option<i32> = env.storage().instance().get(PLAYER1_CARD);
-        let p2_card: Option<i32> = env.storage().instance().get(PLAYER2_CARD);
-        p1_card.is_some() && p2_card.is_some()
-    }
 
-    /// Get winner (only valid when game is POST_GAME)
-    pub fn get_winner(env: &Env) -> Option<Address> {
-        let game_state: i32 = env.storage().instance().get(GAME_STATE).unwrap_or(PRE_GAME);
-        if game_state != POST_GAME {
-            return None;
-        }
-
-        let deck1: Vec<i32> = env.storage().instance().get(PLAYER1_DECK).unwrap();
-        let deck2: Vec<i32> = env.storage().instance().get(PLAYER2_DECK).unwrap();
-        let hand1: Vec<i32> = env.storage().instance().get(PLAYER1_HAND).unwrap();
-        let hand2: Vec<i32> = env.storage().instance().get(PLAYER2_HAND).unwrap();
-        
-        // Check which player is out of cards
-        let player1_out = deck1.len() == 0 && hand1.len() == 0;
-        let player2_out = deck2.len() == 0 && hand2.len() == 0;
-        
-        if player1_out {
-            // Player 2 wins
-            env.storage().instance().get(PLAYER2)
-        } else if player2_out {
-            // Player 1 wins
-            env.storage().instance().get(PLAYER1)
-        } else {
-            // Neither player is out (shouldn't happen if game is POST_GAME)
-            None
-        }
-    }
 
     /// Reset game (for testing)
     pub fn reset_game(env: &Env) {
@@ -347,3 +319,6 @@ impl SpellboundGameLogic {
         env.storage().instance().remove(PLAYER2_CARD);
     }
 }
+
+#[cfg(test)]
+mod test;

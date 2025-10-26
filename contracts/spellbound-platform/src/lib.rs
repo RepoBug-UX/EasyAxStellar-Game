@@ -7,7 +7,7 @@ mod xlm;
 use error::Error;
 
 #[contract]
-pub struct Spellbound;
+pub struct SpellboundPlatform;
 
 // Match states
 const MATCH_WAITING: i32 = 0;
@@ -30,8 +30,8 @@ pub const REGISTERED_PLAYERS: &Symbol = &symbol_short!("players");
 pub const MATCHMAKING_QUEUE: &Symbol = &symbol_short!("queue");
 
 #[contractimpl]
-impl Spellbound {
-    /// Constructor to initialize the contract with an admin and a random number
+impl SpellboundPlatform {
+    /// Constructor to initialize the contract with an admin
     pub fn __constructor(env: &Env, admin: Address) {
         // Require auth from the admin to make the transfer
         admin.require_auth();
@@ -105,13 +105,9 @@ impl Spellbound {
     }
 
     /// Get player's staked amount
-    pub fn get_player_stake(env: &Env, player: Address) -> i128 {
-        let stakes: Map<Address, i128> = env.storage().instance().get(PLAYER_STAKES).unwrap_or(Map::new(&env));
-        stakes.get(player).unwrap_or(0)
-    }
 
-    /// Enter matchmaking queue (stake money upfront)
-    pub fn enter_matchmaking_queue(env: &Env, player: Address) -> Result<(), Error> {
+    /// Find match - automatically matches if opponent available, otherwise enters queue
+    pub fn find_match(env: &Env, player: Address) -> Result<i32, Error> {
         player.require_auth();
         
         // Check if player is registered
@@ -120,17 +116,12 @@ impl Spellbound {
             return Err(Error::PlayerNotRegistered);
         }
         
-        // Check if player is already in a match or queue
+        // Check if player is already in a match
         let matches: Map<i32, (Address, Address, i32)> = env.storage().instance().get(MATCHES).unwrap_or(Map::new(&env));
         for (_, (p1, p2, state)) in matches.iter() {
             if (p1 == player || p2 == player) && state != MATCH_FINISHED {
                 return Err(Error::PlayerAlreadyInMatch);
             }
-        }
-        
-        let queue: Vec<Address> = env.storage().instance().get(MATCHMAKING_QUEUE).unwrap_or(Vec::new(&env));
-        if queue.contains(&player) {
-            return Err(Error::PlayerAlreadyInQueue);
         }
         
         // Pre-stake the money (player signs this transaction)
@@ -142,79 +133,84 @@ impl Spellbound {
         stakes.set(player.clone(), STAKE_AMOUNT);
         env.storage().instance().set(PLAYER_STAKES, &stakes);
         
-        // Add player to queue
+        // Check if there's someone waiting in queue
         let mut queue: Vec<Address> = env.storage().instance().get(MATCHMAKING_QUEUE).unwrap_or(Vec::new(&env));
-        queue.push_back(player);
-        env.storage().instance().set(MATCHMAKING_QUEUE, &queue);
         
-        Ok(())
+        if queue.is_empty() {
+            // No one waiting - enter queue
+            queue.push_back(player);
+            env.storage().instance().set(MATCHMAKING_QUEUE, &queue);
+            return Ok(0); // Return 0 to indicate "waiting in queue"
+        } else {
+            // Someone waiting - match immediately!
+            let opponent = queue.pop_back().unwrap();
+            
+            // Verify opponent still has stake
+            if stakes.get(opponent.clone()).unwrap_or(0) == 0 {
+                // Opponent left queue but stake wasn't cleared - refund and enter queue
+                queue.push_back(player);
+                env.storage().instance().set(MATCHMAKING_QUEUE, &queue);
+                return Ok(0);
+            }
+            
+            // Update queue (opponent removed)
+            env.storage().instance().set(MATCHMAKING_QUEUE, &queue);
+            
+            // Create match immediately
+            let mut counter: i32 = env.storage().instance().get(MATCH_COUNTER).unwrap_or(0);
+            counter += 1;
+            env.storage().instance().set(MATCH_COUNTER, &counter);
+            
+            let match_data = (player, opponent, MATCH_WAITING);
+            let mut matches: Map<i32, (Address, Address, i32)> = env.storage().instance().get(MATCHES).unwrap_or(Map::new(&env));
+            matches.set(counter, match_data);
+            env.storage().instance().set(MATCHES, &matches);
+            
+            // Automatically start the match (fluid motion)
+            Self::start_match(env, counter)?;
+            
+            return Ok(counter); // Return match ID
+        }
     }
     
-    /// Leave matchmaking queue (refund stake)
+    /// Check if player is in matchmaking queue
+    pub fn is_in_queue(env: &Env, player: Address) -> bool {
+        let queue: Vec<Address> = env.storage().instance().get(MATCHMAKING_QUEUE).unwrap_or(Vec::new(&env));
+        queue.contains(&player)
+    }
+
+    /// Leave matchmaking queue (refund stake) - SECURE VERSION
     pub fn leave_matchmaking_queue(env: &Env, player: Address) -> Result<(), Error> {
         player.require_auth();
         
+        // 1. CHECKS: Verify player is in queue and has stake
         let mut queue: Vec<Address> = env.storage().instance().get(MATCHMAKING_QUEUE).unwrap_or(Vec::new(&env));
-        if let Some(index) = queue.iter().position(|p| p == player) {
-            queue.remove(index.try_into().unwrap());
-            env.storage().instance().set(MATCHMAKING_QUEUE, &queue);
-            
-            // Refund the stake
-            let xlm_client = xlm::token_client(env);
-            xlm_client.transfer(&env.current_contract_address(), &player, &STAKE_AMOUNT);
-            
-            // Clear the stake record
-            let mut stakes: Map<Address, i128> = env.storage().instance().get(PLAYER_STAKES).unwrap_or(Map::new(&env));
-            stakes.set(player, 0);
-            env.storage().instance().set(PLAYER_STAKES, &stakes);
+        let stake_index = queue.iter().position(|p| p == player);
+        if stake_index.is_none() {
+            return Err(Error::PlayerNotInQueue);
         }
+        
+        let stakes: Map<Address, i128> = env.storage().instance().get(PLAYER_STAKES).unwrap_or(Map::new(&env));
+        let player_stake = stakes.get(player.clone()).unwrap_or(0);
+        if player_stake == 0 {
+            return Err(Error::NoStakeToRefund);
+        }
+        
+        // 2. EFFECTS: Update state FIRST (before external calls)
+        queue.remove(stake_index.unwrap().try_into().unwrap());
+        env.storage().instance().set(MATCHMAKING_QUEUE, &queue);
+        
+        let mut stakes: Map<Address, i128> = env.storage().instance().get(PLAYER_STAKES).unwrap_or(Map::new(&env));
+        stakes.set(player.clone(), 0);
+        env.storage().instance().set(PLAYER_STAKES, &stakes);
+        
+        // 3. INTERACTIONS: External call LAST (after state is committed)
+        let xlm_client = xlm::token_client(env);
+        xlm_client.transfer(&env.current_contract_address(), &player, &STAKE_AMOUNT);
         
         Ok(())
     }
     
-    /// Find a match (use pre-staked money)
-    pub fn find_match(env: &Env, player: Address) -> Result<i32, Error> {
-        player.require_auth();
-        
-        let mut queue: Vec<Address> = env.storage().instance().get(MATCHMAKING_QUEUE).unwrap_or(Vec::new(&env));
-        if !queue.contains(&player) {
-            return Err(Error::PlayerNotInQueue);
-        }
-        
-        // Find another player in queue
-        let mut opponent: Option<Address> = None;
-        for (i, queued_player) in queue.iter().enumerate() {
-            if queued_player != player {
-                opponent = Some(queued_player.clone());
-                queue.remove(i.try_into().unwrap());
-                break;
-            }
-        }
-        
-        let opponent = opponent.ok_or(Error::NoOpponentFound)?;
-        
-        // Remove both players from queue
-        let mut new_queue: Vec<Address> = Vec::new(&env);
-        for queued_player in queue.iter() {
-            if queued_player != player && queued_player != opponent {
-                new_queue.push_back(queued_player.clone());
-            }
-        }
-        env.storage().instance().set(MATCHMAKING_QUEUE, &new_queue);
-        
-        // Money is already staked, just create the match
-        let mut counter: i32 = env.storage().instance().get(MATCH_COUNTER).unwrap_or(0);
-        counter += 1;
-        env.storage().instance().set(MATCH_COUNTER, &counter);
-        
-        // Create match data
-        let match_data = (player, opponent, MATCH_WAITING);
-        let mut matches: Map<i32, (Address, Address, i32)> = env.storage().instance().get(MATCHES).unwrap_or(Map::new(&env));
-        matches.set(counter, match_data);
-        env.storage().instance().set(MATCHES, &matches);
-        
-        Ok(counter)
-    }
 
     /// Start a match (initialize game logic contract)
     pub fn start_match(env: &Env, match_id: i32) -> Result<(), Error> {
@@ -232,8 +228,8 @@ impl Spellbound {
         // Start game in game logic contract
         env.invoke_contract::<()>(
             &game_contract,
-            &symbol_short!("start"),
-            (match_id, player1.clone(), player2.clone()).into_val(env),
+            &symbol_short!("strt_game"),
+            (match_id, player1.clone(), player2.clone(), env.current_contract_address()).into_val(env),
         );
         
         // Update match state
@@ -244,8 +240,8 @@ impl Spellbound {
         Ok(())
     }
 
-    /// End a match and handle payouts
-    pub fn end_match(env: &Env, match_id: i32) -> Result<(), Error> {
+    /// End a match and handle payouts (called by game logic contract)
+    pub fn end_match(env: &Env, match_id: i32, winner: Option<Address>) -> Result<(), Error> {
         let matches: Map<i32, (Address, Address, i32)> = env.storage().instance().get(MATCHES).unwrap_or(Map::new(&env));
         let match_data = matches.get(match_id).ok_or(Error::MatchNotFound)?;
         
@@ -254,13 +250,7 @@ impl Spellbound {
             return Err(Error::MatchNotActive);
         }
         
-        // Get game logic contract and winner
-        let game_contract: Address = env.storage().instance().get(GAME_LOGIC_CONTRACT).ok_or(Error::GameContractNotSet)?;
-        let winner: Option<Address> = env.invoke_contract(
-            &game_contract,
-            &symbol_short!("winner"),
-            ().into_val(env),
-        );
+        // Winner is passed as parameter from game logic contract
         
         // Calculate payouts
         let total_pot = STAKE_AMOUNT * 2; // 20 XLM total

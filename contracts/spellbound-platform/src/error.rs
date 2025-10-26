@@ -34,4 +34,6 @@ pub enum Error {
     PlayerNotInQueue = 14,
     /// No opponent found in matchmaking queue
     NoOpponentFound = 15,
+    /// No stake to refund
+    NoStakeToRefund = 16,
 }
