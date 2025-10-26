@@ -31,10 +31,9 @@ function App() {
           path="/lobby"
           element={<Lobby key="lobby" onFindMatch={handleFindMatchWrapper} />}
         />
-        {/* eslint-disable-next-line @typescript-eslint/no-misused-promises */}
         <Route
           path="/game"
-          element={<Game onBackToLobby={() => navigate("/lobby")} />}
+          element={<Game onBackToLobby={() => void navigate("/lobby")} />}
         />
         <Route path="/debug" element={<Debugger />} />
         <Route path="/debug/:contractName" element={<Debugger />} />

@@ -24,21 +24,26 @@ function CardStack({ count }: { count: number }) {
   if (count === 0) return null;
 
   return (
-    <div className="relative w-28 h-40 flex-shrink-0">
-      {/* Stacked card effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-secondary/40 rounded border-4 border-primary/60 transform translate-x-1 translate-y-1" />
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/50 to-secondary/50 rounded border-4 border-primary/70 transform translate-x-0.5 translate-y-0.5" />
-      <div className="absolute inset-0 bg-gradient-to-br from-card to-muted rounded border-4 border-primary flex flex-col items-center justify-center overflow-hidden">
-        <img
-          src={cardBackImage}
-          alt="Card Back"
-          className="w-full h-full object-cover absolute inset-0"
-        />
-        <div className="relative z-10 bg-black/70 px-2 py-1 rounded mt-auto mb-2">
-          <div className="pixel-font text-[10px] text-primary">{count}</div>
-          <div className="pixel-font text-[6px] text-muted-foreground">
-            CARDS
-          </div>
+    <div className="flex flex-col items-center">
+      <div className="relative w-28 h-40 flex-shrink-0">
+        {/* Stacked card effect */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-secondary/40 rounded border-4 border-primary/60 transform translate-x-1 translate-y-1" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/50 to-secondary/50 rounded border-4 border-primary/70 transform translate-x-0.5 translate-y-0.5" />
+        <div className="absolute inset-0 bg-gradient-to-br from-card to-muted rounded border-4 border-primary flex flex-col items-center justify-center overflow-hidden">
+          <img
+            src={cardBackImage}
+            alt="Card Back"
+            className="w-full h-full object-cover absolute inset-0 scale-110"
+          />
+        </div>
+      </div>
+      {/* Card count below the deck */}
+      <div className="mt-2 bg-black/70 px-2 py-1 rounded">
+        <div className="pixel-font text-[10px] text-primary text-center">
+          {count}
+        </div>
+        <div className="pixel-font text-[6px] text-muted-foreground text-center">
+          CARDS
         </div>
       </div>
     </div>
@@ -169,7 +174,7 @@ export default function Game({ onBackToLobby }: GamePageProps) {
 
           // Opponent sends emote sometimes
           if (winner === "opponent" && Math.random() > 0.5) {
-            const emotes = ["😂", "🤡", "😎", "👻"];
+            const emotes = ["😊", "😢", "😠", "😎"];
             const randomEmote =
               emotes[Math.floor(Math.random() * emotes.length)];
             setOpponentEmote(randomEmote);
@@ -373,12 +378,6 @@ export default function Game({ onBackToLobby }: GamePageProps) {
                   <div className="pixel-font text-[10px] text-secondary">
                     OPPONENT
                   </div>
-                  <div className="text-[7px] text-muted-foreground flex items-center gap-2">
-                    <span>
-                      TOTAL: {opponentHand.length + opponentDrawDeck.length}{" "}
-                      cards
-                    </span>
-                  </div>
                 </div>
               </div>
 
@@ -477,11 +476,6 @@ export default function Game({ onBackToLobby }: GamePageProps) {
                 </div>
                 <div>
                   <div className="pixel-font text-[10px] text-primary">YOU</div>
-                  <div className="text-[7px] text-muted-foreground flex items-center gap-2">
-                    <span>
-                      TOTAL: {playerHand.length + playerDrawDeck.length} cards
-                    </span>
-                  </div>
                 </div>
               </div>
 
