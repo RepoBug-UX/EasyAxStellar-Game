@@ -1,6 +1,6 @@
 [package]
-name = "spellbound"
-description = "Spellbound game contract for hackathon"
+name = "spellbound-platform"
+description = "Spellbound platform contract for staking, payouts, and match management"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

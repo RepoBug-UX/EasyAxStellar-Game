@@ -14,7 +14,7 @@ nft_enumerable_example = { client = true, constructor_args = "--owner me" }
 spellbound_game_logic = { client = true }
 
 # Rather than in one list, TOML allows specifying contracts in their own "sections"
-[development.contracts.spellbound]
+[development.contracts.spellbound_platform]
 # Generate a contract client (NPM package) for this contract. This means:
 #   - compile (build) the contract source to Wasm
 #   - deploy the contract to the `network` specified above

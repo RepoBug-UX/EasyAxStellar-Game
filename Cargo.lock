@@ -1605,7 +1605,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "spellbound"
+name = "spellbound-game-logic"
 version = "0.0.1"
 dependencies = [
  "soroban-sdk 23.0.3",
@@ -1614,7 +1614,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "spellbound-game-logic"
+name = "spellbound-platform"
 version = "0.0.1"
 dependencies = [
  "soroban-sdk 23.0.3",
