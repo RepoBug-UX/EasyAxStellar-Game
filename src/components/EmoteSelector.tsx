@@ -36,14 +36,14 @@ export function EmoteSelector({ onSelectEmote, disabled }: EmoteSelectorProps) {
             exit={{ opacity: 0, scale: 0.8, y: -10 }}
             className="absolute bottom-full right-0 mb-2 retro-panel p-2 rounded z-50"
           >
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {EMOTES.map((emote) => (
                 <motion.button
                   key={emote.id}
                   whileHover={{ scale: 1.2 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => handleEmoteClick(emote.emoji)}
-                  className="w-12 h-12 bg-muted/50 hover:bg-primary/30 rounded border-2 border-primary/30 flex items-center justify-center transition-colors"
+                  className="w-14 h-14 bg-muted/50 hover:bg-primary/30 rounded border-2 border-primary/30 flex items-center justify-center transition-colors"
                   title={emote.label}
                 >
                   <span className="text-2xl">{emote.emoji}</span>
