@@ -2,13 +2,12 @@
 use soroban_sdk::{contract, contractimpl, symbol_short, Address, Env, Symbol, Vec};
 
 mod error;
-
 use error::Error;
 
 // Game state constants
-const WAITING: i32 = 0;
-const IN_PROGRESS: i32 = 1;
-const FINISHED: i32 = 2;
+const PRE_GAME: i32 = 0;
+const GAME_IN_PROGRESS: i32 = 1;
+const POST_GAME: i32 = 2;
 
 // Storage keys for game data
 const GAME_STATE: &Symbol = &symbol_short!("state");
@@ -29,15 +28,15 @@ impl SpellboundGameLogic {
     /// Constructor
     pub fn __constructor(env: &Env) {
         // Initialize with no active game
-        env.storage().instance().set(GAME_STATE, &WAITING);
+        env.storage().instance().set(GAME_STATE, &PRE_GAME);
     }
 
     /// Start a new game with two players
     /// Called by the platform contract
     pub fn start_game(env: &Env, game_id: i32, player1: Address, player2: Address) -> Result<(), Error> {
         // Check if game is already in progress
-        let current_state: i32 = env.storage().instance().get(GAME_STATE).unwrap_or(WAITING);
-        if current_state != WAITING {
+        let current_state: i32 = env.storage().instance().get(GAME_STATE).unwrap_or(PRE_GAME);
+        if current_state != PRE_GAME {
             return Err(Error::GameNotAvailable);
         }
 
@@ -89,17 +88,17 @@ impl SpellboundGameLogic {
         env.storage().instance().set(PLAYER2_DECK, &deck2);
         
         // Set game state
-        env.storage().instance().set(GAME_STATE, &IN_PROGRESS);
+        env.storage().instance().set(GAME_STATE, &GAME_IN_PROGRESS);
         
         Ok(())
     }
 
     /// Play a card from hand
-    pub fn play_card(env: &Env, player: Address, card_value: i32) -> Result<bool, Error> {
+    pub fn play_card(env: &Env, player: Address, card_value: i32) -> Result<(), Error> {
         player.require_auth();
         
-        let game_state: i32 = env.storage().instance().get(GAME_STATE).unwrap_or(WAITING);
-        if game_state != IN_PROGRESS {
+        let game_state: i32 = env.storage().instance().get(GAME_STATE).unwrap_or(PRE_GAME);
+        if game_state != GAME_IN_PROGRESS {
             return Err(Error::GameNotInProgress);
         }
 
@@ -159,7 +158,7 @@ impl SpellboundGameLogic {
         }
         // If only one player has played, wait for the other
 
-        Ok(true)
+        Ok(())
     }
 
     /// Resolve the clash between two played cards
@@ -181,14 +180,14 @@ impl SpellboundGameLogic {
             let winner = Self::determine_winner(p1_type, p1_num, p2_type, p2_num);
             
             if winner == 1 {
-                // Player 1 wins - their card goes back to deck
+                // Player 1 wins - their card goes to front of deck
                 let mut deck1: Vec<i32> = env.storage().instance().get(PLAYER1_DECK).unwrap();
-                deck1.push_back(p1_card);
+                deck1.push_front(p1_card);
                 env.storage().instance().set(PLAYER1_DECK, &deck1);
             } else {
-                // Player 2 wins - their card goes back to deck
+                // Player 2 wins - their card goes to front of deck
                 let mut deck2: Vec<i32> = env.storage().instance().get(PLAYER2_DECK).unwrap();
-                deck2.push_back(p2_card);
+                deck2.push_front(p2_card);
                 env.storage().instance().set(PLAYER2_DECK, &deck2);
             }
         }
@@ -197,26 +196,33 @@ impl SpellboundGameLogic {
         env.storage().instance().remove(PLAYER1_CARD);
         env.storage().instance().remove(PLAYER2_CARD);
         
-        // Draw new cards for both players
-        Self::draw_cards(env);
-        
-        // Check for game over
+        // Check for game over first
         Self::check_game_over(env);
+        
+        // Only draw new cards if game is still in progress
+        let game_state: i32 = env.storage().instance().get(GAME_STATE).unwrap_or(PRE_GAME);
+        if game_state == GAME_IN_PROGRESS {
+            Self::draw_cards(env);
+        }
     }
     
-    /// Determine winner using circular hierarchy: Light > Shadow > Mortal > Light
+    /// Determine winner using number hierarchy first, then type hierarchy
     fn determine_winner(p1_type: i32, p1_num: i32, p2_type: i32, p2_num: i32) -> i32 {
-        // If same type, higher number wins
-        if p1_type == p2_type {
-            return if p1_num > p2_num { 1 } else { 2 };
+        // Number hierarchy: 4 > 3 > 2 > 1 > 4 (circular, with 1 beating 4)
+        let p1_beats_p2_num = (p1_num > p2_num) || (p1_num == 1 && p2_num == 4);
+        
+        if p1_beats_p2_num {
+            return 1;
+        } else if p2_num > p1_num || (p2_num == 1 && p1_num == 4) {
+            return 2;
         }
         
-        // Circular hierarchy: Light(1) > Shadow(2) > Mortal(3) > Light(1)
-        let p1_beats_p2 = (p1_type == 1 && p2_type == 2) ||  // Light beats Shadow
-                          (p1_type == 2 && p2_type == 3) ||  // Shadow beats Mortal
-                          (p1_type == 3 && p2_type == 1);     // Mortal beats Light
+        // If same number, use type hierarchy: Light(1) > Shadow(2) > Mortal(3) > Light(1)
+        let p1_beats_p2_type = (p1_type == 1 && p2_type == 2) ||  // Light beats Shadow
+                              (p1_type == 2 && p2_type == 3) ||  // Shadow beats Mortal
+                              (p1_type == 3 && p2_type == 1);     // Mortal beats Light
         
-        if p1_beats_p2 { 1 } else { 2 }
+        if p1_beats_p2_type { 1 } else { 2 }
     }
 
     /// Draw cards for both players
@@ -248,9 +254,15 @@ impl SpellboundGameLogic {
     fn check_game_over(env: &Env) {
         let deck1: Vec<i32> = env.storage().instance().get(PLAYER1_DECK).unwrap();
         let deck2: Vec<i32> = env.storage().instance().get(PLAYER2_DECK).unwrap();
+        let hand1: Vec<i32> = env.storage().instance().get(PLAYER1_HAND).unwrap();
+        let hand2: Vec<i32> = env.storage().instance().get(PLAYER2_HAND).unwrap();
         
-        if deck1.len() == 0 || deck2.len() == 0 {
-            env.storage().instance().set(GAME_STATE, &FINISHED);
+        // Game over if either player has no cards in hand AND deck
+        let player1_out = deck1.len() == 0 && hand1.len() == 0;
+        let player2_out = deck2.len() == 0 && hand2.len() == 0;
+        
+        if player1_out || player2_out {
+            env.storage().instance().set(GAME_STATE, &POST_GAME);
         }
     }
 
@@ -284,7 +296,7 @@ impl SpellboundGameLogic {
 
     /// Get game state
     pub fn get_game_state(env: &Env) -> i32 {
-        env.storage().instance().get(GAME_STATE).unwrap_or(WAITING)
+        env.storage().instance().get(GAME_STATE).unwrap_or(PRE_GAME)
     }
 
     /// Check if both players have played this turn
@@ -294,28 +306,37 @@ impl SpellboundGameLogic {
         p1_card.is_some() && p2_card.is_some()
     }
 
-    /// Get winner (only valid when game is finished)
+    /// Get winner (only valid when game is POST_GAME)
     pub fn get_winner(env: &Env) -> Option<Address> {
-        let game_state: i32 = env.storage().instance().get(GAME_STATE).unwrap_or(WAITING);
-        if game_state != FINISHED {
+        let game_state: i32 = env.storage().instance().get(GAME_STATE).unwrap_or(PRE_GAME);
+        if game_state != POST_GAME {
             return None;
         }
 
         let deck1: Vec<i32> = env.storage().instance().get(PLAYER1_DECK).unwrap();
         let deck2: Vec<i32> = env.storage().instance().get(PLAYER2_DECK).unwrap();
+        let hand1: Vec<i32> = env.storage().instance().get(PLAYER1_HAND).unwrap();
+        let hand2: Vec<i32> = env.storage().instance().get(PLAYER2_HAND).unwrap();
         
-        if deck1.len() == 0 {
+        // Check which player is out of cards
+        let player1_out = deck1.len() == 0 && hand1.len() == 0;
+        let player2_out = deck2.len() == 0 && hand2.len() == 0;
+        
+        if player1_out {
             // Player 2 wins
             env.storage().instance().get(PLAYER2)
-        } else {
+        } else if player2_out {
             // Player 1 wins
             env.storage().instance().get(PLAYER1)
+        } else {
+            // Neither player is out (shouldn't happen if game is POST_GAME)
+            None
         }
     }
 
     /// Reset game (for testing)
     pub fn reset_game(env: &Env) {
-        env.storage().instance().set(GAME_STATE, &WAITING);
+        env.storage().instance().set(GAME_STATE, &PRE_GAME);
         env.storage().instance().remove(PLAYER1);
         env.storage().instance().remove(PLAYER2);
         env.storage().instance().remove(PLAYER1_DECK);
