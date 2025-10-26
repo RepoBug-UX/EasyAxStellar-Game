@@ -132,6 +132,14 @@ Token standard implementation demonstrating Stellar token capabilities (referenc
 
 # 🎮 Spellbound - Stellar Blockchain Card Game
 
+# 🚀 LIVE DEMO - TRY IT NOW!
+
+## 🔗 **https://dainty-trifle-d06dfe.netlify.app**
+
+## 🔑 **Password: My-Drop-Site**
+
+---
+
 **Live Demo**: https://repobug-ux.github.io/EasyAxStellar-Spellbound/  
 **Netlify Demo**: https://dainty-trifle-d06dfe.netlify.app (Password: `My-Drop-Site`)  
 **Smart Contract**: `CCSMSRFPJHXGDFYMPVJVNW2RD6B6WQ5ECTP7VD37WMDUEMWJ4ZALIVC5`  
