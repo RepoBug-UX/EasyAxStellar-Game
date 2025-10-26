@@ -56,7 +56,7 @@ constructor_args = """
 #
 # Only supported in `development` and `testing` environments.
 after_deploy = """
-reset
+
 """
 
 # Coming Soon: Specify live contracts to bind & import in this project using the given name.

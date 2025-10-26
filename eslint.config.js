@@ -12,8 +12,11 @@ export default tseslint.config(
   globalIgnores([
     "dist",
     "packages",
+    "target/**/*", // Ignore generated contract files
     "src/contracts/*",
     "!src/contracts/util.ts",
+    "src/components/ui/**/*", // Ignore UI component library errors
+    "src/debug/**/*", // Ignore debug components
   ]),
   {
     extends: [

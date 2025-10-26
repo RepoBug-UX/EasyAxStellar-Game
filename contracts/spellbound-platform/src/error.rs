@@ -36,4 +36,6 @@ pub enum Error {
     NoOpponentFound = 15,
     /// No stake to refund
     NoStakeToRefund = 16,
+    /// Player failed to transfer XLM to the contract
+    FailedToTransferFromPlayer = 17,
 }

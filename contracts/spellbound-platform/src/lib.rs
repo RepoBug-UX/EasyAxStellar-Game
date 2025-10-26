@@ -106,15 +106,63 @@ impl SpellboundPlatform {
 
     /// Get player's staked amount
 
+    /// DEMO: Simple stake function - just move money from player to contract
+    pub fn demo_stake(env: &Env, player: Address) -> Result<(), Error> {
+        player.require_auth();
+        
+        // Register XLM token for the player if not already registered
+        xlm::register(env, &player);
+        
+        // Transfer XLM from player to contract
+        let xlm_client = xlm::token_client(env);
+        xlm_client.transfer(&player, &env.current_contract_address(), &STAKE_AMOUNT);
+        
+        // Store the stake
+        let mut stakes: Map<Address, i128> = env.storage().instance().get(PLAYER_STAKES).unwrap_or(Map::new(&env));
+        stakes.set(player.clone(), STAKE_AMOUNT);
+        env.storage().instance().set(PLAYER_STAKES, &stakes);
+        
+        Ok(())
+    }
+    
+    /// DEMO: Simple unstake function - just move money from contract back to player
+    pub fn demo_unstake(env: &Env, player: Address) -> Result<(), Error> {
+        player.require_auth();
+        
+        // Register XLM token for the player if not already registered
+        xlm::register(env, &player);
+        
+        // Check if player has stake to refund
+        let stakes: Map<Address, i128> = env.storage().instance().get(PLAYER_STAKES).unwrap_or(Map::new(&env));
+        let stake_amount = stakes.get(player.clone()).unwrap_or(0);
+        if stake_amount == 0 {
+            return Err(Error::NoStakeToRefund);
+        }
+        
+        // Transfer XLM from contract back to player
+        let xlm_client = xlm::token_client(env);
+        xlm_client.transfer(&env.current_contract_address(), &player, &STAKE_AMOUNT);
+        
+        // Remove stake from storage
+        let mut stakes_mut: Map<Address, i128> = stakes;
+        stakes_mut.remove(player.clone());
+        env.storage().instance().set(PLAYER_STAKES, &stakes_mut);
+        
+        Ok(())
+    }
+    
     /// Find match - automatically matches if opponent available, otherwise enters queue
     pub fn find_match(env: &Env, player: Address) -> Result<i32, Error> {
         player.require_auth();
         
-        // Check if player is registered
-        let players: Vec<Address> = env.storage().instance().get(REGISTERED_PLAYERS).unwrap_or(Vec::new(&env));
-        if !players.contains(&player) {
-            return Err(Error::PlayerNotRegistered);
-        }
+        // Register XLM token for the player if not already registered
+        xlm::register(env, &player);
+        
+        // Check if player is registered - DISABLED for simplified flow
+        // let players: Vec<Address> = env.storage().instance().get(REGISTERED_PLAYERS).unwrap_or(Vec::new(&env));
+        // if !players.contains(&player) {
+        //     return Err(Error::PlayerNotRegistered);
+        // }
         
         // Check if player is already in a match
         let matches: Map<i32, (Address, Address, i32)> = env.storage().instance().get(MATCHES).unwrap_or(Map::new(&env));
@@ -126,7 +174,9 @@ impl SpellboundPlatform {
         
         // Pre-stake the money (player signs this transaction)
         let xlm_client = xlm::token_client(env);
-        xlm_client.transfer(&player, &env.current_contract_address(), &STAKE_AMOUNT);
+        let _ = xlm_client
+            .try_transfer(&player, &env.current_contract_address(), &STAKE_AMOUNT)
+            .map_err(|_| Error::FailedToTransferFromPlayer)?;
         
         // Store the stake
         let mut stakes: Map<Address, i128> = env.storage().instance().get(PLAYER_STAKES).unwrap_or(Map::new(&env));
@@ -183,6 +233,9 @@ impl SpellboundPlatform {
     pub fn leave_matchmaking_queue(env: &Env, player: Address) -> Result<(), Error> {
         player.require_auth();
         
+        // Register XLM token for the player if not already registered
+        xlm::register(env, &player);
+        
         // 1. CHECKS: Verify player is in queue and has stake
         let mut queue: Vec<Address> = env.storage().instance().get(MATCHMAKING_QUEUE).unwrap_or(Vec::new(&env));
         let stake_index = queue.iter().position(|p| p == player);
@@ -206,7 +259,9 @@ impl SpellboundPlatform {
         
         // 3. INTERACTIONS: External call LAST (after state is committed)
         let xlm_client = xlm::token_client(env);
-        xlm_client.transfer(&env.current_contract_address(), &player, &STAKE_AMOUNT);
+        let _ = xlm_client
+            .try_transfer(&env.current_contract_address(), &player, &STAKE_AMOUNT)
+            .map_err(|_| Error::FailedToTransferToGuesser)?;
         
         Ok(())
     }
